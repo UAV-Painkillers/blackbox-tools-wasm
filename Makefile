@@ -25,6 +25,12 @@ DEBUG = GDB
 # Things that need to be maintained as the source changes
 #
 
+# Emcc
+EMCC = emcc
+EMCC_COMPILE_FLAGS = -O0
+EMCC_LINK_FLAGS = -s EXPORTED_RUNTIME_METHODS='["cwrap", "FS"]' -s USE_PTHREADS=0 -s EXPORTED_FUNCTIONS='["_decode"]' -s EXPORT_NAME="'BlackboxDecodeModule'" -s ENVIRONMENT=web -s SINGLE_FILE=1 -s MODULARIZE=1
+
+
 # Working directories
 ROOT		 = $(dir $(lastword $(MAKEFILE_LIST)))
 SRC_DIR		 = $(ROOT)/src
@@ -34,8 +40,6 @@ BIN_DIR		 = $(ROOT)/obj
 # Source files common to all targets
 COMMON_SRC	 = parser.c tools.c platform.c stream.c decoders.c units.c blackbox_fielddefs.c
 DECODER_SRC	 = $(COMMON_SRC) blackbox_decode.c gpxwriter.c imu.c battery.c stats.c
-RENDERER_SRC = $(COMMON_SRC) blackbox_render.c datapoints.c embeddedfont.c expo.c imu.c
-ENCODER_TESTBED_SRC = $(COMMON_SRC) encoder_testbed.c encoder_testbed_io.c
 
 # In some cases, %.s regarded as intermediate file, which is actually not.
 # This will prevent accidental deletion of startup code.
@@ -53,13 +57,13 @@ VPATH		:= $(SRC_DIR)
 #
 INCLUDE_DIRS	 = $(SRC_DIR)
 
-ifeq ($(DEBUG),GDB)
+#ifeq ($(DEBUG),GDB)
 OPTIMIZE	 = -O0
 LTO_FLAGS	 = $(OPTIMIZE)
-else
-OPTIMIZE	 = -O3
-LTO_FLAGS	 = -flto $(OPTIMIZE)
-endif
+#else
+#OPTIMIZE	 = -O3
+#LTO_FLAGS	 = -flto $(OPTIMIZE)
+#endif
 
 DEBUG_FLAGS	 = -g3 -ggdb
 
@@ -73,14 +77,14 @@ CFLAGS		= $(ARCH_FLAGS) \
 		-pthread \
 		-Wall -pedantic -Wextra -Wshadow
 
-CFLAGS += `pkg-config --cflags cairo` `pkg-config --cflags freetype2`
+# CFLAGS += `pkg-config --cflags cairo` `pkg-config --cflags freetype2`
 
 ifeq ($(BUILD_STATIC), MACOSX)
 	# For cairo built with ./configure --enable-quartz=no  --without-x --enable-pdf=no --enable-ps=no --enable-script=no --enable-xcb=no --enable-ft=yes --enable-fc=no --enable-xlib=no
-	LDFLAGS += -Llib/macosx -lcairo -lpixman-1 -lpng16 -lz -lfreetype -lbz2
+	# LDFLAGS += -Llib/macosx -lcairo -lpixman-1 -lpng16 -lz -lfreetype -lbz2
 else
 	# Dynamic linking
-	LDFLAGS += `pkg-config --libs cairo` `pkg-config --libs freetype2`
+	# LDFLAGS += `pkg-config --libs cairo` `pkg-config --libs freetype2`
 endif
 
 LDFLAGS += -lm
@@ -97,35 +101,37 @@ LDFLAGS += -pthread
 # Things we will build
 #
 
-DECODER_ELF	 = $(BIN_DIR)/blackbox_decode
-RENDERER_ELF = $(BIN_DIR)/blackbox_render
-ENCODER_TESTBED_ELF = $(BIN_DIR)/encoder_testbed
+DECODER_ELF	 = $(BIN_DIR)/blackbox_decode.js
+#RENDERER_ELF = $(BIN_DIR)/blackbox_render
+#ENCODER_TESTBED_ELF = $(BIN_DIR)/encoder_testbed
 
 DECODER_OBJS	 = $(addsuffix .o,$(addprefix $(OBJECT_DIR)/,$(basename $(DECODER_SRC))))
-RENDERER_OBJS	 = $(addsuffix .o,$(addprefix $(OBJECT_DIR)/,$(basename $(RENDERER_SRC))))
-ENCODER_TESTBED_OBJS	 = $(addsuffix .o,$(addprefix $(OBJECT_DIR)/,$(basename $(ENCODER_TESTBED_SRC))))
+#RENDERER_OBJS	 = $(addsuffix .o,$(addprefix $(OBJECT_DIR)/,$(basename $(RENDERER_SRC))))
+#ENCODER_TESTBED_OBJS	 = $(addsuffix .o,$(addprefix $(OBJECT_DIR)/,$(basename $(ENCODER_TESTBED_SRC))))
 
-TARGET_MAP   = $(OBJECT_DIR)/blackbox_decode.map
+#TARGET_MAP   = $(OBJECT_DIR)/blackbox_decode.map
 
-all : $(DECODER_ELF) $(RENDERER_ELF) $(ENCODER_TESTBED_ELF)
+#all : $(DECODER_ELF) $(RENDERER_ELF) $(ENCODER_TESTBED_ELF)
+all : $(DECODER_ELF)
 
 $(DECODER_ELF):  $(DECODER_OBJS)
-	@$(CC) -o $@ $^ $(LDFLAGS)
+	@$(EMCC) $(EMCC_LINK_FLAGS) -o $@ $^ $(LDFLAGS)
 
-$(RENDERER_ELF):  $(RENDERER_OBJS)
-	@$(CC) -o $@ $^ $(LDFLAGS)
+#$(RENDERER_ELF):  $(RENDERER_OBJS)
+#	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(ENCODER_TESTBED_ELF): $(ENCODER_TESTBED_OBJS)
-	@$(CC) -o $@ $^ $(LDFLAGS)
+#$(ENCODER_TESTBED_ELF): $(ENCODER_TESTBED_OBJS)
+#	@$(CC) -o $@ $^ $(LDFLAGS)
 
 # Compile
 $(OBJECT_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo %% $(notdir $<)
-	@$(CC) -c -o $@ $(CFLAGS) $<
+	@$(EMCC) $(EMCC_COMPILE_FLAGS) -c -o $@ $(CFLAGS) $<
 
 clean:
-	rm -f $(RENDERER_ELF) $(DECODER_ELF) $(ENCODER_TESTBED_ELF) $(ENCODER_TESTBED_OBJS) $(RENDERER_OBJS) $(DECODER_OBJS) $(TARGET_MAP)
+#	rm -f $(RENDERER_ELF) $(DECODER_ELF) $(ENCODER_TESTBED_ELF) $(ENCODER_TESTBED_OBJS) $(RENDERER_OBJS) $(DECODER_OBJS) $(TARGET_MAP)
+	rm -f $(DECODER_OBJS)
 
 help:
 	@echo ""

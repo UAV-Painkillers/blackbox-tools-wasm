@@ -24,13 +24,13 @@
     #include <getopt.h>
 #endif
 
+#include "units.h"
 #include "parser.h"
 #include "platform.h"
 #include "tools.h"
 #include "gpxwriter.h"
 #include "imu.h"
 #include "battery.h"
-#include "units.h"
 #include "stats.h"
 
 #define MIN_GPS_SATELLITES 5
@@ -1388,12 +1388,53 @@ void parseCommandlineOptions(int argc, char **argv)
     }
 }
 
+int decode(const char* inputFilename) {
+    const char* filename = "/logs/logfile.bbl";
+    if (inputFilename != NULL) {
+        filename = inputFilename;
+    }
+
+    int fd = open(filename, O_RDONLY);
+
+    if (fd < 0) {
+        fprintf(stderr, "Failed to open log file '%s': %s\n\n", filename, strerror(errno));
+        return -1;
+    }
+
+    flightLog_t *log = flightLogCreate(fd);
+
+    if (!log) {
+        fprintf(stderr, "Failed to read log file '%s'\n\n", filename);
+        return -1;
+    }
+
+    if (log->logCount == 0) {
+        fprintf(stderr, "Couldn't find the header of a flight log in the file '%s', is this the right kind of file?\n\n", filename);
+        return -1;
+    }
+
+    int logIndex;
+    if (options.logNumber > 0 || options.toStdout) {
+        logIndex = validateLogIndex(log);
+
+        if (logIndex == -1)
+            return -1;
+
+        decodeFlightLog(log, filename, logIndex);
+    } else {
+        //Decode all the logs
+        for (logIndex = 0; logIndex < log->logCount; logIndex++)
+            decodeFlightLog(log, filename, logIndex);
+    }
+
+    flightLogDestroy(log);
+
+    return 0;
+}
+
+/*
 int main(int argc, char **argv)
 {
-    flightLog_t *log;
-    int fd;
-    int logIndex;
-
     platform_init();
 
     parseCommandlineOptions(argc, argv);
@@ -1411,39 +1452,9 @@ int main(int argc, char **argv)
     for (int i = optind; i < argc; i++) {
         const char *filename = argv[i];
 
-        fd = open(filename, O_RDONLY);
-        if (fd < 0) {
-            fprintf(stderr, "Failed to open log file '%s': %s\n\n", filename, strerror(errno));
-            continue;
-        }
-
-        log = flightLogCreate(fd);
-
-        if (!log) {
-            fprintf(stderr, "Failed to read log file '%s'\n\n", filename);
-            continue;
-        }
-
-        if (log->logCount == 0) {
-            fprintf(stderr, "Couldn't find the header of a flight log in the file '%s', is this the right kind of file?\n\n", filename);
-            continue;
-        }
-
-        if (options.logNumber > 0 || options.toStdout) {
-            logIndex = validateLogIndex(log);
-
-            if (logIndex == -1)
-                return -1;
-
-            decodeFlightLog(log, filename, logIndex);
-        } else {
-            //Decode all the logs
-            for (logIndex = 0; logIndex < log->logCount; logIndex++)
-                decodeFlightLog(log, filename, logIndex);
-        }
-
-        flightLogDestroy(log);
+        run(filename);
     }
 
     return 0;
 }
+*/
