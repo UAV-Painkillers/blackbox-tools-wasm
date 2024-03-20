@@ -1389,7 +1389,7 @@ void parseCommandlineOptions(int argc, char **argv)
 }
 
 int decode(const char* inputFilename) {
-    const char* filename = "/logs/logfile.bbl";
+    const char* filename = "/logfile.bbl";
     if (inputFilename != NULL) {
         filename = inputFilename;
     }
